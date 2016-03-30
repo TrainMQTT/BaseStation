@@ -47,8 +47,11 @@ Part of DCC++ BASE STATION for the Arduino
   #define DCC_SIGNAL_PIN_PROG 2           // Arduino Mega - uses OC3B
 
 #else
+  #define ARDUINO_TYPE  "ESP8266"
 
-  #error CANNOT COMPILE - DCC++ ONLY WORKS WITH AN ARDUINO UNO OR AN ARDUINO MEGA 1280/2560
+  #define DCC_SIGNAL_PIN_MAIN 10          // Arduino Mega - uses OC1B
+  #define DCC_SIGNAL_PIN_PROG 5           // Arduino Mega - uses OC3B
+  //#error CANNOT COMPILE - DCC++ ONLY WORKS WITH AN ARDUINO UNO OR AN ARDUINO MEGA 1280/2560
 
 #endif
 
@@ -63,8 +66,8 @@ Part of DCC++ BASE STATION for the Arduino
   #define SIGNAL_ENABLE_PIN_MAIN 3
   #define SIGNAL_ENABLE_PIN_PROG 11
 
-  #define CURRENT_MONITOR_PIN_MAIN A0
-  #define CURRENT_MONITOR_PIN_PROG A1
+  #define CURRENT_MONITOR_PIN_MAIN 98
+  #define CURRENT_MONITOR_PIN_PROG 99
 
   #define DIRECTION_MOTOR_CHANNEL_PIN_A 12
   #define DIRECTION_MOTOR_CHANNEL_PIN_B 13

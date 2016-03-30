@@ -229,9 +229,9 @@ void setup(){
 
   EEStore::init();                                          // initialize and load Turnout and Sensor definitions stored in EEPROM
 
-  pinMode(A5,INPUT);                                       // if pin A5 is grounded upon start-up, print system configuration and halt
-  digitalWrite(A5,HIGH);
-  if(!digitalRead(A5))
+  pinMode(95,INPUT);                                       // if pin A5 is grounded upon start-up, print system configuration and halt
+  digitalWrite(95,HIGH);
+  if(!digitalRead(95))
     showConfiguration();
 
   Serial.print("<iDCC++ BASE STATION FOR ARDUINO ");      // Print Status to Serial Line regardless of COMM_TYPE setting so use can open Serial Monitor and check configurtion 
@@ -274,38 +274,38 @@ void setup(){
   // Controlled by Arduino 16-bit TIMER 1 / OC1B Interrupt Pin
   // Values for 16-bit OCR1A and OCR1B registers calibrated for 1:1 prescale at 16 MHz clock frequency
   // Resulting waveforms are 200 microseconds for a ZERO bit and 116 microseconds for a ONE bit with exactly 50% duty cycle
-
-  #define DCC_ZERO_BIT_TOTAL_DURATION_TIMER1 3199
-  #define DCC_ZERO_BIT_PULSE_DURATION_TIMER1 1599
-
-  #define DCC_ONE_BIT_TOTAL_DURATION_TIMER1 1855
-  #define DCC_ONE_BIT_PULSE_DURATION_TIMER1 927
-
-  pinMode(DIRECTION_MOTOR_CHANNEL_PIN_A,INPUT);      // ensure this pin is not active! Direction will be controlled by DCC SIGNAL instead (below)
-  digitalWrite(DIRECTION_MOTOR_CHANNEL_PIN_A,LOW);
-
-  pinMode(DCC_SIGNAL_PIN_MAIN, OUTPUT);      // THIS ARDUINO OUPUT PIN MUST BE PHYSICALLY CONNECTED TO THE PIN FOR DIRECTION-A OF MOTOR CHANNEL-A
-
-  bitSet(TCCR1A,WGM10);     // set Timer 1 to FAST PWM, with TOP=OCR1A
-  bitSet(TCCR1A,WGM11);
-  bitSet(TCCR1B,WGM12);
-  bitSet(TCCR1B,WGM13);
-
-  bitSet(TCCR1A,COM1B1);    // set Timer 1, OC1B (pin 10/UNO, pin 12/MEGA) to inverting toggle (actual direction is arbitrary)
-  bitSet(TCCR1A,COM1B0);
-
-  bitClear(TCCR1B,CS12);    // set Timer 1 prescale=1
-  bitClear(TCCR1B,CS11);
-  bitSet(TCCR1B,CS10);
-    
-  OCR1A=DCC_ONE_BIT_TOTAL_DURATION_TIMER1;
-  OCR1B=DCC_ONE_BIT_PULSE_DURATION_TIMER1;
-  
-  pinMode(SIGNAL_ENABLE_PIN_MAIN,OUTPUT);   // master enable for motor channel A
-
-  mainRegs.loadPacket(1,RegisterList::idlePacket,2,0);    // load idle packet into register 1    
-      
-  bitSet(TIMSK1,OCIE1B);    // enable interrupt vector for Timer 1 Output Compare B Match (OCR1B)    
+//
+//  #define DCC_ZERO_BIT_TOTAL_DURATION_TIMER1 3199
+//  #define DCC_ZERO_BIT_PULSE_DURATION_TIMER1 1599
+//
+//  #define DCC_ONE_BIT_TOTAL_DURATION_TIMER1 1855
+//  #define DCC_ONE_BIT_PULSE_DURATION_TIMER1 927
+//
+//  pinMode(DIRECTION_MOTOR_CHANNEL_PIN_A,INPUT);      // ensure this pin is not active! Direction will be controlled by DCC SIGNAL instead (below)
+//  digitalWrite(DIRECTION_MOTOR_CHANNEL_PIN_A,LOW);
+//
+//  pinMode(DCC_SIGNAL_PIN_MAIN, OUTPUT);      // THIS ARDUINO OUPUT PIN MUST BE PHYSICALLY CONNECTED TO THE PIN FOR DIRECTION-A OF MOTOR CHANNEL-A
+//
+//  bitSet(TCCR1A,WGM10);     // set Timer 1 to FAST PWM, with TOP=OCR1A
+//  bitSet(TCCR1A,WGM11);
+//  bitSet(TCCR1B,WGM12);
+//  bitSet(TCCR1B,WGM13);
+//
+//  bitSet(TCCR1A,COM1B1);    // set Timer 1, OC1B (pin 10/UNO, pin 12/MEGA) to inverting toggle (actual direction is arbitrary)
+//  bitSet(TCCR1A,COM1B0);
+//
+//  bitClear(TCCR1B,CS12);    // set Timer 1 prescale=1
+//  bitClear(TCCR1B,CS11);
+//  bitSet(TCCR1B,CS10);
+//    
+//  OCR1A=DCC_ONE_BIT_TOTAL_DURATION_TIMER1;
+//  OCR1B=DCC_ONE_BIT_PULSE_DURATION_TIMER1;
+//  
+//  pinMode(SIGNAL_ENABLE_PIN_MAIN,OUTPUT);   // master enable for motor channel A
+//
+//  mainRegs.loadPacket(1,RegisterList::idlePacket,2,0);    // load idle packet into register 1    
+//      
+//  bitSet(TIMSK1,OCIE1B);    // enable interrupt vector for Timer 1 Output Compare B Match (OCR1B)    
 
   // CONFIGURE EITHER TIMER_0 (UNO) OR TIMER_3 (MEGA) TO OUTPUT 50% DUTY CYCLE DCC SIGNALS ON OC0B (UNO) OR OC3B (MEGA) INTERRUPT PINS
   
@@ -347,7 +347,7 @@ void setup(){
       
   bitSet(TIMSK0,OCIE0B);    // enable interrupt vector for Timer 0 Output Compare B Match (OCR0B)
 
-#else      // Configuration for MEGA
+#elif defined  ARDUINO_AVR_MEGA2560     // Configuration for MEGA
 
   // Directon Pin for Motor Shield Channel B - PROGRAMMING TRACK
   // Controlled by Arduino 16-bit TIMER 3 / OC3B Interrupt Pin
@@ -422,55 +422,56 @@ void setup(){
 
 // THE INTERRUPT CODE MACRO:  R=REGISTER LIST (mainRegs or progRegs), and N=TIMER (0 or 1)
 
-#define DCC_SIGNAL(R,N) \
-  if(R.currentBit==R.currentReg->activePacket->nBits){    /* IF no more bits in this DCC Packet */ \
-    R.currentBit=0;                                       /*   reset current bit pointer and determine which Register and Packet to process next--- */ \   
-    if(R.nRepeat>0 && R.currentReg==R.reg){               /*   IF current Register is first Register AND should be repeated */ \
-      R.nRepeat--;                                        /*     decrement repeat count; result is this same Packet will be repeated */ \
-    } else if(R.nextReg!=NULL){                           /*   ELSE IF another Register has been updated */ \
-      R.currentReg=R.nextReg;                             /*     update currentReg to nextReg */ \
-      R.nextReg=NULL;                                     /*     reset nextReg to NULL */ \
-      R.tempPacket=R.currentReg->activePacket;            /*     flip active and update Packets */ \        
-      R.currentReg->activePacket=R.currentReg->updatePacket; \
-      R.currentReg->updatePacket=R.tempPacket; \
-    } else{                                               /*   ELSE simply move to next Register */ \
-      if(R.currentReg==R.maxLoadedReg)                    /*     BUT IF this is last Register loaded */ \
-        R.currentReg=R.reg;                               /*       first reset currentReg to base Register, THEN */ \
-      R.currentReg++;                                     /*     increment current Register (note this logic causes Register[0] to be skipped when simply cycling through all Registers) */ \
-    }                                                     /*   END-ELSE */ \
-  }                                                       /* END-IF: currentReg, activePacket, and currentBit should now be properly set to point to next DCC bit */ \
-                                                          \
-  if(R.currentReg->activePacket->buf[R.currentBit/8] & R.bitMask[R.currentBit%8]){     /* IF bit is a ONE */ \
-    OCR ## N ## A=DCC_ONE_BIT_TOTAL_DURATION_TIMER ## N;                               /*   set OCRA for timer N to full cycle duration of DCC ONE bit */ \
-    OCR ## N ## B=DCC_ONE_BIT_PULSE_DURATION_TIMER ## N;                               /*   set OCRB for timer N to half cycle duration of DCC ONE but */ \
-  } else{                                                                              /* ELSE it is a ZERO */ \
-    OCR ## N ## A=DCC_ZERO_BIT_TOTAL_DURATION_TIMER ## N;                              /*   set OCRA for timer N to full cycle duration of DCC ZERO bit */ \
-    OCR ## N ## B=DCC_ZERO_BIT_PULSE_DURATION_TIMER ## N;                              /*   set OCRB for timer N to half cycle duration of DCC ZERO bit */ \
-  }                                                                                    /* END-ELSE */ \ 
-                                                                                       \ 
-  R.currentBit++;                                         /* point to next bit in current Packet */  
-  
-///////////////////////////////////////////////////////////////////////////////
-
-// NOW USE THE ABOVE MACRO TO CREATE THE CODE FOR EACH INTERRUPT
-
-ISR(TIMER1_COMPB_vect){              // set interrupt service for OCR1B of TIMER-1 which flips direction bit of Motor Shield Channel A controlling Main Track
-  DCC_SIGNAL(mainRegs,1)
-}
-
-#ifdef ARDUINO_AVR_UNO      // Configuration for UNO
-
-ISR(TIMER0_COMPB_vect){              // set interrupt service for OCR1B of TIMER-0 which flips direction bit of Motor Shield Channel B controlling Prog Track
-  DCC_SIGNAL(progRegs,0)
-}
-
-#else      // Configuration for MEGA
-
-ISR(TIMER3_COMPB_vect){              // set interrupt service for OCR3B of TIMER-3 which flips direction bit of Motor Shield Channel B controlling Prog Track
-  DCC_SIGNAL(progRegs,3)
-}
-
-#endif
+//#define DCC_SIGNAL(R,N) \
+//  if(R.currentBit==R.currentReg->activePacket->nBits){    /* IF no more bits in this DCC Packet */ \
+//    R.currentBit=0;                                       /*   reset current bit pointer and determine which Register and Packet to process next--- */ \   
+//    if(R.nRepeat>0 && R.currentReg==R.reg){               /*   IF current Register is first Register AND should be repeated */ \
+//      R.nRepeat--;                                        /*     decrement repeat count; result is this same Packet will be repeated */ \
+//    } else if(R.nextReg!=NULL){                           /*   ELSE IF another Register has been updated */ \
+//      R.currentReg=R.nextReg;                             /*     update currentReg to nextReg */ \
+//      R.nextReg=NULL;                                     /*     reset nextReg to NULL */ \
+//      R.tempPacket=R.currentReg->activePacket;            /*     flip active and update Packets */ \        
+//      R.currentReg->activePacket=R.currentReg->updatePacket; \
+//      R.currentReg->updatePacket=R.tempPacket; \
+//    } else{                                               /*   ELSE simply move to next Register */ \
+//      if(R.currentReg==R.maxLoadedReg)                    /*     BUT IF this is last Register loaded */ \
+//        R.currentReg=R.reg;                               /*       first reset currentReg to base Register, THEN */ \
+//      R.currentReg++;                                     /*     increment current Register (note this logic causes Register[0] to be skipped when simply cycling through all Registers) */ \
+//    }                                                     /*   END-ELSE */ \
+//  }                                                       /* END-IF: currentReg, activePacket, and currentBit should now be properly set to point to next DCC bit */ \
+//                                                          \
+//  if(R.currentReg->activePacket->buf[R.currentBit/8] & R.bitMask[R.currentBit%8]){     /* IF bit is a ONE */ \
+//    OCR ## N ## A=DCC_ONE_BIT_TOTAL_DURATION_TIMER ## N;                               /*   set OCRA for timer N to full cycle duration of DCC ONE bit */ \
+//    OCR ## N ## B=DCC_ONE_BIT_PULSE_DURATION_TIMER ## N;                               /*   set OCRB for timer N to half cycle duration of DCC ONE but */ \
+//  } else{                                                                              /* ELSE it is a ZERO */ \
+//    OCR ## N ## A=DCC_ZERO_BIT_TOTAL_DURATION_TIMER ## N;                              /*   set OCRA for timer N to full cycle duration of DCC ZERO bit */ \
+//    OCR ## N ## B=DCC_ZERO_BIT_PULSE_DURATION_TIMER ## N;                              /*   set OCRB for timer N to half cycle duration of DCC ZERO bit */ \
+//  }                                                                                    /* END-ELSE */ \ 
+//                                                                                       \ 
+//  R.currentBit++;                                         /* point to next bit in current Packet */  
+//  
+/////////////////////////////////////////////////////////////////////////////////
+//
+//// NOW USE THE ABOVE MACRO TO CREATE THE CODE FOR EACH INTERRUPT
+//
+//ISR(TIMER1_COMPB_vect){              // set interrupt service for OCR1B of TIMER-1 which flips direction bit of Motor Shield Channel A controlling Main Track
+//  DCC_SIGNAL(mainRegs,1)
+//}
+//
+//
+//#ifdef ARDUINO_AVR_UNO      // Configuration for UNO
+//
+//ISR(TIMER0_COMPB_vect){              // set interrupt service for OCR1B of TIMER-0 which flips direction bit of Motor Shield Channel B controlling Prog Track
+//  DCC_SIGNAL(progRegs,0)
+//}
+//
+//#else      // Configuration for MEGA
+//
+//ISR(TIMER3_COMPB_vect){              // set interrupt service for OCR3B of TIMER-3 which flips direction bit of Motor Shield Channel B controlling Prog Track
+//  DCC_SIGNAL(progRegs,3)
+//}
+//
+//#endif
 
 
 ///////////////////////////////////////////////////////////////////////////////
